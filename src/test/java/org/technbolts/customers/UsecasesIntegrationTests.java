@@ -61,7 +61,7 @@ public class UsecasesIntegrationTests {
 
   @Test
   void hugeGenerateData() throws IOException {
-    int count = 100000;
+    int count = 50000;
     String fileName = "target/customers" + count + ".csv";
     generateCSVFile(fileName, count);
     List<NewCustomer> newCustomers = loadNewCustomers(new InputStreamReader(new FileInputStream(fileName)));
@@ -77,7 +77,7 @@ public class UsecasesIntegrationTests {
     List<NewCustomer> newCustomers = loadNewCustomers(new InputStreamReader(getClass().getResourceAsStream("/samples/customers.csv")));
     insertSamplesIfMissing(newCustomers);
 
-    BasicCriteria<Customer.Column> criteria = new BasicCriteria<>(Customer.Column.EMAIL, "maëlle");
+    BasicCriteria<Customer.Column> criteria = new BasicCriteria<>(Customer.Column.EMAIL, "maëlle mor");
     Page<Customer> page = customers.search(new Paging(5, null), criteria);
     assertThat(page).isNotNull();
     assertThat(page.values()).isNotEmpty();

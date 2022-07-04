@@ -3,7 +3,16 @@
 docker exec -it devenv_secrets_postgres_1 /bin/sh
 / # psql -U futurama_secrets_mig futurama
 futurama=> set role futurama_secrets;
+futurama=# \copy customers(email,firstname,lastname,localized_labels) FROM PROGRAM 'zcat /queries/customers.csv.gz' DELIMITER ',' CSV HEADER;
+
 futurama=# \i /queries/search.sql
+
+
+
+
+
+futurama=# \copy customers(email,firstname,lastname,localized_labels) TO PROGRAM 'gzip > /queries/customers.csv.gz' WITH (format csv, header, force_quote *)
+
 ....
 
 
