@@ -9,7 +9,7 @@ public class NewTemplateDatedSettings {
   private final InstantRange range;
   private final JSONObject settings;
 
-  NewTemplateDatedSettings(
+  public NewTemplateDatedSettings(
           TemplateId templateId,
           InstantRange range,
           JSONObject settings) {

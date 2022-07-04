@@ -4,14 +4,24 @@ import org.json.JSONObject;
 import org.technbolts.tokend.util.InstantRange;
 
 public class TemplateDatedSettings {
+  private final TemplateDatedSettingsId id;
   private final TemplateId templateId;
   private final InstantRange range;
   private final JSONObject settings;
 
-  public TemplateDatedSettings(TemplateId templateId, InstantRange range, JSONObject settings) {
+  public TemplateDatedSettings(
+          TemplateDatedSettingsId id,
+          TemplateId templateId,
+          InstantRange range,
+          JSONObject settings) {
+    this.id = id;
     this.templateId = templateId;
     this.range = range;
     this.settings = settings;
+  }
+
+  public TemplateDatedSettingsId id() {
+    return id;
   }
 
   public InstantRange range() {
@@ -25,7 +35,8 @@ public class TemplateDatedSettings {
   @Override
   public String toString() {
     return "TemplateDatedSettings{" +
-            "templateId=" + templateId +
+            "" + id +
+            ", " + templateId +
             ", range=" + range +
             ", settings=" + settings +
             '}';

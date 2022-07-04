@@ -110,6 +110,7 @@ public class JdbcTemplates implements Templates {
       ResultSet resultSet = pstmt.executeQuery();
       if (resultSet.next()) {
         return Optional.of(new TemplateDatedSettings(
+                TemplateDatedSettingsId.of(resultSet.getLong("id")),
                 id,
                 new InstantRange(
                         resultSet.getTimestamp("rg_min").toInstant(),
@@ -138,6 +139,7 @@ public class JdbcTemplates implements Templates {
       ResultSet resultSet = pstmt.executeQuery();
       if (resultSet.next()) {
         return Optional.of(new TemplateDatedSettings(
+                TemplateDatedSettingsId.of(resultSet.getLong("id")),
                 TemplateId.of(resultSet.getLong("secret_id")),
                 new InstantRange(
                         resultSet.getTimestamp("rg_min").toInstant(),
@@ -161,17 +163,32 @@ public class JdbcTemplates implements Templates {
             "ON CONFLICT ON CONSTRAINT dated_settings_tz_range " +
             "DO NOTHING " +
             "returning id";
+
+    sql = "WITH e AS(" +
+            "    INSERT INTO dated_settings (secret_id, tz_range, settings)" +
+            "           VALUES (?, ?::TSTZRANGE, ?::JSONB)" +
+            "    ON CONFLICT ON CONSTRAINT dated_settings_tz_range DO NOTHING" +
+            "    RETURNING id" +
+            ") " +
+            "SELECT * FROM e " +
+            "UNION" +
+            "    SELECT id FROM dated_settings WHERE secret_id=? AND tz_range = ?::TSTZRANGE";
+    // one uses strict equals (=) range operator
+    // and not the overlapping (&&) operator to detect
+    // conflicting but not equal ranges
     try (Connection conn = openConnection();
          PreparedStatement pstmt = conn.prepareStatement(sql)) {
       pstmt.setLong(1, datedSettings.templateId().raw());
       pstmt.setString(2, toSqlString(datedSettings.range()));
       pstmt.setString(3, datedSettings.settings().toString());
+      pstmt.setLong(4, datedSettings.templateId().raw());
+      pstmt.setString(5, toSqlString(datedSettings.range()));
       boolean rowInserted = pstmt.execute();
       ResultSet resultSet = pstmt.getResultSet();
       if (resultSet.next()) {
         return findDatedSettingById(resultSet.getLong(1)).get();
       }
-      throw new RuntimeException("No id generated...");
+      throw new RuntimeException("No id generated or non equals (but overlapping) range...");
     } catch (Exception e) {
       throw new RuntimeException("Failed to insert secrets...", e);
     }
