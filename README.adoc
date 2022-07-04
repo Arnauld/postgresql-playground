@@ -1,0 +1,41 @@
+
+== Models
+
+[plantuml, target=db, format=png]
+....
+' hide the spot
+hide circle
+
+entity Tenants {
+    * tenant_id <<pk>>
+    --
+    * tenant_code <<unique>>
+}
+
+entity Templates {
+    * id <<pk>>
+    * tenant_id <<fk>>
+    --
+    * name: text
+    * settings: json
+    --
+    (tenant_id, name) <<unique>>
+}
+
+entity TemplateDatedSettings {
+    * template_id <<fk>>
+    * tenant_id <<fk>>
+    --
+    * effective_date_min: timestampz
+      effective_date_max: timestampz
+    * settings: json
+}
+
+Templates "*" -- "1" Tenants
+Templates "1" -- "*" TemplateDatedSettings
+....
+
+== Resources
+
+
+* https://github.com/mysto/java-fpe

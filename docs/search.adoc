@@ -1,0 +1,18 @@
+[source, bash]
+....
+docker exec -it devenv_secrets_postgres_1 /bin/sh
+/ # psql -U futurama_secrets_mig futurama
+futurama=> set role futurama_secrets;
+futurama=# \i /queries/search.sql
+....
+
+
+
+[source, sql]
+....
+include::../devenv/queries/search.sql[]
+....
+
+* https://leandronsp.com/a-powerful-full-text-search-in-postgresql-in-less-than-20-lines
+* https://www.depesz.com/2011/02/19/waiting-for-9-1-faster-likeilike/
+*

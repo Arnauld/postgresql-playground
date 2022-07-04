@@ -1,0 +1,198 @@
+== Overview
+
+Le but est de founir une librairie facilitant l'exploitation des secrets et leurs renouvellements.
+
+La librarie disposera de sa propre base de données (utilisateur postgres dédié) afin de s'assurer que les utilisateurs applicatifs ne puissent accéder à ses données. Il pourra être envisager dans un second temps que cette librarie soit déployée en tant qu'application dédiée et non en tant que librarie.
+
+[ditaa,overview,svg]
+....
+ +----------------+     +----------------+
+ | APP1           |     | APP2           |
+ |         cBLU   |     |         cBLU   |
+ |                |     |                |
+ |      +-------+ |     | +-------+      |
+ |      |secrets| |     | |secrets|      |
+ |      |cGRE   | |     | |cGRE   |      |
+ +-+----+-----+-+-+     +-+-+-----+-+----+
+   |          |             |       |
+   |          | /-----------/       |
+   |          | |                   |
+ +-+----+  +--+-+----+            +-+----+
+ |  cBLU|  |  cGRE   |            |  cBLU|
+ | APP1 |  | secrets |            | APP2 |
+ | {s}  |  | {s}     |            | {s}  |
+ +------+  +---------+            +------+
+....
+
+=== Modèle de données interne simplifié
+
+[plantuml,secrets-models,svg]
+....
+enum SecretType {
+    FF3
+    KEY_PAIR
+    TOKEN
+}
+
+note as FF3
+<b>FF3</b>
+global {
+    "tweak_size" => 56 | 64
+    "key_size" => 128 | 256
+    "alphabet" => "0123456789abcdefgh..."
+}
+
+dated {
+    "tweak" => "A3FC4FEBAB3",
+    "key" =>   "DE4AEF..."
+}
+end note
+
+note as KEY_PAIR
+<b>KEY_PAIR</b>
+global {
+    "alg": "RSA/256"
+}
+
+dated {
+    "pub"  => "A3FC4FEBAB3",
+    "priv" => "DE4AEF..."
+}
+end note
+
+note as TOKEN
+<b>TOKEN</b>
+global {
+    "format":    "(\d+)-(\d+)-(\d+)"
+    "transform": "xxxx-xxxx-$1"
+}
+
+dated {}
+end note
+
+SecretType .. FF3
+SecretType .. KEY_PAIR
+SecretType .. TOKEN
+
+entity Secrets {
+    * id <<pk>>
+    --
+    name: text
+    rotation_started_at: timestamptz
+    rotation_period: CRON
+    timezone: text
+    mode: SecretType
+    settings: JSON
+}
+note top: "unique (tenant_id, name)"
+
+entity DatedSettings {
+    * id <<pk>>
+    * template_id <<fk>>
+    * tz_range: tstzrange
+    --
+    settings: JSON
+}
+note bottom: "tz_range non overlapping range for (tenant_id, template_id)"
+
+Secrets "1" -- "*" DatedSettings
+....
+
+[%header, cols=6]
+.Settings / FF3
+|===
+| tenant | template    | mode | timezone      | rotation_period    | rotation_started_at
+| idfm   | reservation | FF3  | Europe/Paris  | "0 4 5 * *"        | 2020-06-19T18:29:00
+|===
+
+[%header, cols=5]
+.DatedSettings / FF3
+|===
+| tenant | template    | tz_range                                     | tweak    | key
+| idfm   | reservation | (,2020-06-05T01:00:00Z)                      | AEFGaz89 | DEF4323AEFB...
+| idfm   | reservation | [2020-06-05T01:00:00Z, 2020-07-05T01:00:00Z) | BGAzb23P | DEF45AEEEF9...
+| idfm   | reservation | [2020-07-05T01:00:00Z, 2020-08-05T01:00:00Z) | CF34AZbe | DEF4789DFE3...
+|===
+
+=== Cas d'usage - Gestion des clés de signature des CB2D
+
+Récupération de la clé de signature:
+
+[plantuml,cb2d-priv-key,svg]
+....
+App1 -> Secrets: get_signature_key(name: cb2d, at: now)
+Secrets -> Secrets: dt = get_dated_secrets_at(name, at)
+alt dt not exists
+Secrets -> Secrets: s = find_secrets(name)
+Secrets -> Secrets: r = calculate_date_range_around(s.rotation_period, at)
+Secrets -> Secrets: ks = <b><color blue>generate_key_pairs(s.get('alg'))</color></b>
+Secrets -> Secrets: dt = new_dated(s, r, ks)
+Secrets -> Secrets: insert_or_get_on_conflicts(dt)
+end
+Secrets -> Secrets: ks = dt.get('private')
+Secrets -> App1: (dt.id, ks)
+....
+
+[NOTE]
+Le couple clés privé/publique est généré si absent dans l'intervalle de temps spécifié.
+
+
+Récupération de la clé pour vérfier une signature:
+
+[plantuml,cb2d-pub-key,svg]
+....
+App1 -> Secrets: get_verifying_key(name: cb2d, at: now)
+Secrets -> Secrets: dt = get_dated_secrets_at(name, at)
+alt dt not exists
+Secrets -> App1: -
+else
+Secrets -> Secrets: ks = dt.get('public')
+Secrets -> App1: (dt.id, ks)
+end
+....
+
+[NOTE]
+Le couple clés privé/publique n'est pas généré si absent dans l'intervalle de temps spécifié. La signature n'a pas pu être faites avec des données qui n'existent pas encore.
+
+=== Gestion de la période de rotation
+
+L'idée est de pouvoir configurer une rotation quotidienne/hebdomadaire ou mensuelle à une heure ou un jour fixe.
+
+Par exemples:
+
+* Toutes les 6h
+* Tous les jours à 02h30 du matin
+* Chaque lundi à 23h00
+* Tous les 5 de chaque mois à 4h du matin
+
+L'implémenation se basera sur l'utilisation d'expression CRON simplifiée; on ne détaillera pas ici la saisie des expressions et leur conformité à cette simplification.
+On considérera dans un premier temps que les expressions restent suffisamment simple.
+
+
+
+Exemple saisie initiale rotation
+
+[%header, cols=6]
+.Settings / FF3
+|===
+| tenant | template    | mode | timezone      | rotation_period    | rotation_started_at
+| idfm   | reservation | FF3  | Europe/Paris  | "0 4 5 * *"        | 2020-06-19T18:29:00
+|===
+
+[%header, cols=5]
+.DatedSettings / FF3
+|===
+| tenant | template    | tz_range                                     | tweak    | key
+| idfm   | reservation | (,2020-06-05T01:00:00Z)                      | AEFGaz89 | DEF4323AEFB...
+| idfm   | reservation | [2020-06-05T01:00:00Z, 2020-07-05T01:00:00Z) | BGAzb23P | DEF45AEEEF9...
+| idfm   | reservation | [2020-07-05T01:00:00Z, 2020-08-05T01:00:00Z) | CF34AZbe | DEF4789DFE3...
+5+^e| ...
+| idfm   | reservation | [2022-06-05T01:00:00Z, 2022-06-05T01:00:00Z) | KFC11A0b | DEF67829DB1...
+|===
+
+La `rotation_period` est modifiée pour générer une nouvelle clé toutes les lundis à 15h: `0 15 * * 1`
+
+[source,java]
+....
+include::../src/test/java/org/technbolts/tokend/CronTest.java[tag=compute_next_cron_range_when_expression_change]
+....
