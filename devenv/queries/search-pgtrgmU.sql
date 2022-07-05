@@ -6,7 +6,9 @@ select c.id,
        similarity
 from
     secrets.customers as c,
-    similarity('olivier', lastname || ' ' || firstname || ' ' || email) as similarity
+    similarity(
+        unaccent('maëlle mor'),
+        unaccent(lastname || ' ' || firstname || ' ' || email)) as similarity
 where
     similarity > 0.2
 order by

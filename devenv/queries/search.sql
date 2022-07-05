@@ -1,4 +1,4 @@
-explain analyse
+-- explain analyse
 select c.id,
        ts_rank(document, query) as rank,
        ts_rank(fullname, query) as rank_fullname,

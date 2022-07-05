@@ -86,7 +86,7 @@ entity Secrets {
 }
 note top: "unique (tenant_id, name)"
 
-entity DatedSettings {
+entity SecretsDatedSettings {
     * id <<pk>>
     * template_id <<fk>>
     * tz_range: tstzrange
@@ -95,7 +95,7 @@ entity DatedSettings {
 }
 note bottom: "tz_range non overlapping range for (tenant_id, template_id)"
 
-Secrets "1" -- "*" DatedSettings
+Secrets "1" -- "*" SecretsDatedSettings
 ....
 
 [%header, cols=6]

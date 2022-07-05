@@ -31,7 +31,7 @@ public class UsecasesIntegrationTest {
 
   @Test
   void case001() {
-    String name = "reservation-" + System.nanoTime();
+    String name = "reservation";
     TemplateId templateId = templates.add(new NewTemplate(
             name,
             TemplateMode.FF3,
@@ -46,7 +46,36 @@ public class UsecasesIntegrationTest {
             null,
             name,
             ZonedDateTime.of(LocalDate.of(2021, 3, 23), LocalTime.now(), ZONE_ID).toInstant(),
-            "Chuck Finley"));
+            "ChuckFinley"));
+    System.out.println(output.results());
+    assertThat(output.results()).isNotEmpty();
+  }
+
+  @Test
+  void case001_apres() {
+    String name = "reservation";
+    DataOutput output = dataProtection.encrypt(new DataInput(
+            null,
+            name,
+            ZonedDateTime.of(LocalDate.of(2021, 3, 23), LocalTime.now(), ZONE_ID).toInstant(),
+            "ChuckFinley"));
+    System.out.println(output.results());
+    assertThat(output.results()).isNotEmpty();
+
+    output = dataProtection.encrypt(new DataInput(
+            null,
+            name,
+            ZonedDateTime.of(LocalDate.of(2022, 3, 23), LocalTime.now(), ZONE_ID).toInstant(),
+            "ChuckFinley"));
+    System.out.println(output.results());
+
+
+    assertThat(output.results()).isNotEmpty();output = dataProtection.encrypt(new DataInput(
+            null,
+            name,
+            ZonedDateTime.of(LocalDate.of(2022, 1, 3), LocalTime.now(), ZONE_ID).toInstant(),
+            "ChuckFinley"));
+    System.out.println(output.results());
     assertThat(output.results()).isNotEmpty();
   }
 

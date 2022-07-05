@@ -134,8 +134,9 @@ public class UsecasesTest {
   @Test
   void encrypt_decrypt_round_trip() {
     Instant when = Instant.parse("2022-06-15T11:57:03Z");
-    String actual = "CarmenMcCallum";
+    String actual = "Carmen McCallum";
     DataOutput encrypted = dataProtection.encrypt(new DataInput(TENANT, TEMPLATE_NAME, when, actual));
+    System.out.println(encrypted.results());
     DataOutput decrypted = dataProtection.decrypt(new DataInput(TENANT, TEMPLATE_NAME, when, encrypted.results()));
     assertThat(decrypted.results().get(0)).isEqualTo(actual);
   }
